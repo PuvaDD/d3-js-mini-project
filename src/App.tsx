@@ -1,10 +1,12 @@
+import type { ChartData } from "./components/lineChart/lineChart";
+
 import { useEffect, useState } from "react";
-import reactLogo from "./assets/react.svg";
-import viteLogo from "/vite.svg";
+
+import LineChart from "./components/lineChart/lineChart";
 import "./App.css";
 
 function App() {
-  const [data, setData] = useState(null);
+  const [data, setData] = useState<null | ChartData[]>(null);
 
   useEffect(() => {
     fetchData();
@@ -15,7 +17,7 @@ function App() {
       const response = await fetch("/data.json");
       if (!response.ok) throw new Error("Failed to fetch data");
 
-      const result = await response.json();
+      const result: ChartData[] = await response.json();
 
       setData(result);
     } catch (error) {
@@ -26,17 +28,21 @@ function App() {
     }
   };
 
-  console.log("Data = ", data);
+  const renderCharts = () => {
+    if (!data?.length) return;
+
+    return data.map((d) => (
+      <section className="chart-section">
+        <h1>{d.title}</h1>
+        <LineChart chart={d} />
+      </section>
+    ));
+  };
 
   return (
     <div>
       <header>Vite + React</header>
-      <a href="https://vite.dev" target="_blank">
-        <img src={viteLogo} className="logo" alt="Vite logo" />
-      </a>
-      <a href="https://react.dev" target="_blank">
-        <img src={reactLogo} className="logo react" alt="React logo" />
-      </a>
+      {renderCharts()}
     </div>
   );
 }
