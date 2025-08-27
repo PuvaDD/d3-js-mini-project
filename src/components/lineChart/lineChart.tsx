@@ -1,3 +1,4 @@
+import * as d3 from "d3";
 import { useRef, useEffect } from "react";
 import "./lineChart.css";
 
@@ -59,6 +60,33 @@ const LineChart = ({
         yValues.push(y);
       }
     });
+
+    // Configure Scales
+    const xScale = d3
+      .scaleLinear()
+      .domain(d3.extent(xValues) as [number, number])
+      .range([margin.left, width - margin.right]);
+
+    const yScale = d3
+      .scaleLinear()
+      .domain(d3.extent(yValues) as [number, number])
+      .nice()
+      .range([height - margin.bottom, margin.top]);
+
+    // Draw axes with SVG
+    const svg = d3.select(svgRef.current);
+    const xAxis = d3.axisBottom(xScale);
+    const yAxis = d3.axisLeft(yScale);
+
+    svg
+      .select<SVGGElement>(".x-axis")
+      .attr("transform", `translate(0,${height - margin.bottom})`)
+      .call(xAxis);
+
+    svg
+      .select<SVGGElement>(".y-axis")
+      .attr("transform", `translate(${margin.left},0)`)
+      .call(yAxis);
   }, [chart, width, height, maxPoints]);
 
   return (
