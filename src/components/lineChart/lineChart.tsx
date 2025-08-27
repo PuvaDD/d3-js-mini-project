@@ -7,6 +7,8 @@ type Timestamp = number;
 type SingleSeriesPoint = [Timestamp, number];
 type MultiSeriesPoint = [Timestamp, number[]];
 
+type MappedFeature = { timestamp: number; value: number };
+
 export type ChartData =
   | {
       title: string;
@@ -72,6 +74,43 @@ const LineChart = ({
       .domain(d3.extent(yValues) as [number, number])
       .nice()
       .range([height - margin.bottom, margin.top]);
+
+    // Calculate series count
+    const seriesCount = Array.isArray(displayData[0][1])
+      ? (displayData[0][1] as number[]).length
+      : 1;
+
+    // Helper function
+    const colors = ["blue", "green", "red"];
+    const drawLine = (dataset: MappedFeature[], color: string) => {
+      ctx.beginPath();
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 1.5;
+
+      dataset.forEach((d, i) => {
+        const x = xScale(d.timestamp);
+        const y = yScale(d.value);
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      });
+
+      ctx.stroke();
+    };
+
+    // Draw a line for each valid/available feature
+    for (let s = 0; s < seriesCount; s++) {
+      const seriesData: MappedFeature[] = displayData
+        .map((d) => {
+          const y = Array.isArray(d[1]) ? d[1][s] : d[1];
+          return { timestamp: d[0], value: y };
+        })
+        .filter(
+          (d) =>
+            d.value !== null && d.value !== undefined && !Number.isNaN(d.value)
+        );
+
+      drawLine(seriesData, colors[s % colors.length]);
+    }
 
     // Draw axes with SVG
     const svg = d3.select(svgRef.current);
