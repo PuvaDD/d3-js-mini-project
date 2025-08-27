@@ -1,0 +1,9 @@
+.line-chart-wrapper {
+  position: relative;
+}
+
+.line-chart-common-styles {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
