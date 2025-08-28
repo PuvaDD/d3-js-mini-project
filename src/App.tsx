@@ -1,4 +1,8 @@
-import type { ChartData } from "./components/lineChart/lineChart";
+import type {
+  ChartData,
+  MappedFeature,
+  PreparedChart,
+} from "./utils/lineChartTypes";
 
 import { useEffect, useState } from "react";
 
@@ -6,11 +10,39 @@ import LineChart from "./components/lineChart/lineChart";
 import "./App.css";
 
 function App() {
-  const [data, setData] = useState<null | ChartData[]>(null);
+  const [data, setData] = useState<null | PreparedChart[]>(null);
 
   useEffect(() => {
     fetchData();
   }, []);
+
+  const prepareChart = (chart: ChartData): PreparedChart => {
+    const displayData = chart.data;
+
+    // Determine number of series
+    const seriesCount = Array.isArray(displayData[0][1])
+      ? (displayData[0][1] as number[]).length
+      : 1;
+
+    // Build each series
+    const series: MappedFeature[][] = Array.from(
+      { length: seriesCount },
+      (_, s) =>
+        displayData
+          .map((d) => {
+            const y = Array.isArray(d[1]) ? d[1][s] : d[1];
+            return { timestamp: d[0], value: y };
+          })
+          .filter(
+            (d) =>
+              d.value !== null &&
+              d.value !== undefined &&
+              !Number.isNaN(d.value)
+          )
+    );
+
+    return { title: chart.title, series };
+  };
 
   const fetchData = async () => {
     try {
@@ -19,7 +51,9 @@ function App() {
 
       const result: ChartData[] = await response.json();
 
-      setData(result);
+      const prepared = result.map(prepareChart);
+
+      setData(prepared);
     } catch (error) {
       console.log(
         "FETCH_ERROR",
@@ -31,8 +65,8 @@ function App() {
   const renderCharts = () => {
     if (!data?.length) return;
 
-    return data.map((d) => (
-      <section className="chart-section">
+    return data.map((d, i) => (
+      <section className="chart-section" key={i}>
         <h1>{d.title}</h1>
         <LineChart chart={d} />
       </section>
