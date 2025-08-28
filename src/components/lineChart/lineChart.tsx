@@ -1,6 +1,6 @@
 import type { LineChartProps, MappedFeature } from "../../utils/lineChartTypes";
 
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useMemo } from "react";
 
 import * as d3 from "d3";
 import "./lineChart.css";
@@ -8,21 +8,49 @@ import "./lineChart.css";
 const margin = { top: 50, right: 50, bottom: 50, left: 70 };
 const colors = ["blue", "green", "red"];
 
+const FAULTY_DATA_FALLBACK_UI = <div>Data is faulty</div>;
+
 const LineChart = ({ chart, width = 1920, height = 400 }: LineChartProps) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const svgRef = useRef<SVGSVGElement | null>(null);
 
+  const validSeries: MappedFeature[][] = useMemo(() => {
+    return chart.series.map((s, i) => {
+      if (!Array.isArray(s)) {
+        console.warn(`Series ${i} is not an array and will be skipped`);
+        return [];
+      }
+
+      return s.filter((p, j) => {
+        if (
+          !p ||
+          typeof p.timestamp !== "number" ||
+          !Number.isFinite(p.timestamp) ||
+          typeof p.value !== "number" ||
+          !Number.isFinite(p.value)
+        ) {
+          console.warn(`Invalid point at series ${i}, index ${j}`, p);
+          return false;
+        }
+        return true;
+      });
+    });
+  }, [chart]);
+
   useEffect(() => {
     if (!canvasRef.current || !svgRef.current) return;
 
+    // Validate Series
+    const nonEmptySeries = validSeries.filter((s) => s.length > 0);
+    if (nonEmptySeries.length <= 0) return;
+
+    // Access canvas context
     const ctx = canvasRef.current.getContext("2d")!;
     ctx.clearRect(0, 0, width, height);
 
     // Compute X and Y extents from series
-    const allTimestamps = chart.series.flatMap((s) =>
-      s.map((d) => d.timestamp)
-    );
-    const allValues = chart.series.flatMap((s) => s.map((d) => d.value));
+    const allTimestamps = validSeries.flatMap((s) => s.map((d) => d.timestamp));
+    const allValues = validSeries.flatMap((s) => s.map((d) => d.value));
 
     // Define scales
     const xScale = d3
@@ -36,7 +64,7 @@ const LineChart = ({ chart, width = 1920, height = 400 }: LineChartProps) => {
       .nice()
       .range([height - margin.bottom, margin.top]);
 
-    chart.series.forEach((s, idx) =>
+    validSeries.forEach((s, idx) =>
       drawLine(s, ctx, xScale, yScale, colors[idx % colors.length])
     );
 
@@ -72,7 +100,7 @@ const LineChart = ({ chart, width = 1920, height = 400 }: LineChartProps) => {
         const newX = transform.rescaleX(xScale);
 
         ctx.clearRect(0, 0, width, height);
-        chart.series.forEach((s, idx) => {
+        validSeries.forEach((s, idx) => {
           ctx.save();
           ctx.beginPath();
           ctx.rect(
@@ -142,6 +170,16 @@ const LineChart = ({ chart, width = 1920, height = 400 }: LineChartProps) => {
 
     ctx.restore();
   };
+
+  if (!chart) {
+    console.error("LineChart: chart prop is missing");
+    return FAULTY_DATA_FALLBACK_UI;
+  }
+
+  if (!Array.isArray(validSeries) || validSeries.length === 0) {
+    console.warn("LineChart: chart.series is empty or not an array");
+    return FAULTY_DATA_FALLBACK_UI;
+  }
 
   return (
     <div
